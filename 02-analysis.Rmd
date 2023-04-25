@@ -1,0 +1,152 @@
+---
+title: "AAC Analysis"
+output:
+  html_document:
+    df_print: paged
+---
+
+## Setup
+
+```{r setup}
+library(tidyverse)
+library(lubridate)
+library(scales)
+library(plotly)
+library(clipr)
+```
+
+## Import the data
+
+Loading data from previous notebook
+
+```{r import}
+intakes <- read_rds("data-processed/01-intakes.rds")
+
+intakes %>% glimpse()
+```
+
+## Question 1: Intakes by year
+
+Finding whether animal intakes are increasing or decreasing each year since 2016. Plotting column chart of intakes by year, excluding 2021.
+
+```{r q1-data}
+intakes_yr_data <- intakes %>% 
+  count(yr, name = "count_animals") %>% 
+  filter(yr < "2021")
+
+intakes_yr_data
+```
+
+Plot the data as a column chart
+
+```{r q1-plot}
+ggplot(intakes_yr_data, aes(x = yr, y = count_animals)) +
+  geom_col() +
+  geom_text(aes(label = comma(count_animals)), vjust = 2, color = "white") +
+  scale_y_continuous(label = comma) +
+  labs(
+    title = "Austin Animal Center Intakes Since 2016",
+    subtitle = "Data from Austin Animal Center, excluding 2021 data",
+    caption = "By Cecilia Garzella",
+    x = "Year",
+    y = "Number of Animal Intakes"
+  )
+```
+
+## Question 2: Animal intakes by month
+
+```{r yrm-data}
+intakes_yrmo <- intakes %>% 
+  count(yr_mo, name = "count_animals")
+
+# peek
+intakes_yrmo
+```
+
+Plot the data as a line
+
+```{r yrm-plot, fig.width = 7}
+intakes_yrmo %>% 
+  ggplot(aes(x = yr_mo, y = count_animals)) +
+  geom_line(group = 1) +
+  theme(axis.text.x = element_text(angle = 90)) # flips the x-axis name
+```
+
+## Question 3: Plot by month, split by year
+
+```{r mo-yr-data}
+mo_yr_data <- intakes %>% 
+  count(mo, yr, name = "count_animals")
+
+# peek
+mo_yr_data
+```
+
+Plot by month, split by year
+
+```{r mo-yr-plot}
+mo_yr_data %>% 
+  ggplot(aes(x = mo, y = count_animals)) +
+  geom_line(aes(group = yr, color = as.character(yr))) +
+  labs(
+    title = "Austin Animal Center Intakes by Month, Split by Year",
+    subtitle = "Data from Austin Animal Center, 2016-2021",
+    caption = "By Cecilia Garzella",
+    x = "Month",
+    y = "Number of Intakes",
+    color = "Year"
+  )
+```
+
+## Question 4: Animal types by month
+
+### Recoding the animal type
+
+```{r types-data}
+intake_types <- intakes %>% 
+  filter(yr < 2021) %>% # removes 2021 because partial year
+  mutate(
+    animal_type = recode(animal_type, # first argument is column to look at
+          "Bird" = "Other", # old name = new name
+          "Livestock" = "Other"
+    )
+  )
+
+intake_types %>% 
+  count(animal_type)
+```
+
+### Prep the data for plotting
+
+Creating animal type summary by month
+
+```{r prep}
+mo_types_data <- intake_types %>% 
+  count(mo, animal_type, name = "count_type")
+
+# peek
+mo_types_data
+```
+
+### Plotting animal types by month
+
+Splitting by animal type
+
+```{r types-plot}
+mo_types_data %>% 
+  ggplot(aes(x = mo, y = count_type)) +
+  geom_line(aes(group = animal_type, color = animal_type)) +
+  labs(
+    title = "Animal Types Driving Seasonal Trends at Austin Animal Center",
+    subtitle = "Monthly intake counts contain data collected over 5-year period (2016-2020)",
+    caption = "Data from Austin Animal Center",
+    x = "Month",
+    y = "Number of Intakes",
+    color = "Animal Type"
+  )
+```
+
+I was surprised to see that intakes of dogs and other animals were pretty consistent year-round, but cats were driving the spring/summer surge. I did a quick Google search and read that cats generally reproduce around this time, peaking in April. This could be one possible explanation, but to find out more information, I would do some reporting and talk to the folks at AAC.
+
+
+
