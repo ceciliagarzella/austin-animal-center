@@ -1,0 +1,91 @@
+---
+title: "AAC Import/clean"
+output:
+  html_document:
+    df_print: paged
+---
+
+## Goals
+
+- Are animal intakes increasing or decreasing each year since 2016? Plot a column chart of intakes by year. Don’t include 2021 since it is not a full year.
+- Are there seasonal monthly trends in overall animal intakes? Plot intakes by year/month from 2016 to current, including 2021. (One long line or column chart)
+- Plot that same monthly trend, except with month as the x axis, with a new line for each year.
+- Do certain types of animals drive seasonal trends? Use five full years of data (not 2021) to summarize intakes by animal type and month. Plot with month on the x axis with a line for each animal type.
+
+## Setup
+
+```{r setup}
+library(tidyverse)
+library(janitor)
+library(lubridate)
+```
+
+## Import the data
+
+```{r import}
+raw_data <- read_csv("data-raw/Austin_Animal_Center_Intakes.csv") %>% clean_names()
+
+raw_data %>% head()
+```
+
+Glimpse the data
+
+```{r glimpse}
+raw_data %>% glimpse()
+```
+
+## Fix the dates
+
+```{r date-fix}
+date_fix <- raw_data %>% 
+  mutate(
+    timestamp = mdy_hms(date_time),
+    intake_date = str_sub(date_time, 1, 10),
+    intake_date = mdy(intake_date)
+  )
+
+date_fix %>% glimpse()
+```
+
+## Parse the date into helpful variables
+
+Making year, month, and year-month columns to help plot later
+
+```{r parse}
+date_parts <- date_fix %>% 
+  mutate(
+    yr = year(intake_date), # creates yr and fills it with YYYY
+    mo = month(intake_date, label = TRUE), # used label to write out month
+    yr_mo = format(intake_date, "%Y-%m") # new rule to make YYYY-MM
+  ) %>% 
+  select(intake_date, yr, mo, yr_mo, everything(), -date_time, -month_year)
+
+# peek
+date_parts %>% glimpse()
+```
+
+## Filter dates
+
+Filtering only 2016 to present, excluding partial month of October. Use through Sept. 2021
+
+```{r filter-dates}
+filtered_dates <- date_parts %>% 
+  filter(intake_date >= "2016-01-01",
+         intake_date <= "2021-09-30")
+
+filtered_dates %>% summary()
+```
+
+## Export the data
+
+```{r export}
+filtered_dates %>% write_rds("data-processed/01-intakes.rds")
+```
+
+
+
+
+
+
+
+
